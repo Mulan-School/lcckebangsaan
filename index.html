@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lomba Cerdas Cermat Kebangsaan Cross Culture 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            merah: '#9b1c1c',
+                            merahHover: '#7f1616',
+                            gold: '#b8860b',
+                            goldHover: '#9a6f08'
+                        }
+                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f7f5f2; }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .pattern-merah {
+            background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.06) 0 12px, transparent 12px 24px);
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://lhfjydoqphlypsgglklh.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_Pf4G_sAlH9HBz32NO4Y-7w_8y1yKJfI';
+        const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    </script>
+</head>
+<body class="min-h-screen flex flex-col text-gray-800 antialiased">
+    <div id="app-container" class="min-h-screen flex flex-col"></div>
+
+    <div id="overview-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden border border-gray-100">
+            <div class="bg-brand-merah text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-list-check text-amber-300"></i>
+                    <h3 class="font-bold text-sm sm:text-base">Ringkasan Pengerjaan</h3>
+                </div>
+                <button onclick="toggleModal(false)" class="text-white/80 hover:text-white w-8 h-8 rounded-full bg-white/10 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <div class="grid grid-cols-2 gap-4 text-center">
+                    <div class="bg-rose-50 p-4 rounded-2xl border border-rose-100">
+                        <span class="text-2xl font-extrabold text-brand-merah block" id="modal-answered-count">0</span>
+                        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Terjawab</span>
+                    </div>
+                    <div class="bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                        <span class="text-2xl font-extrabold text-amber-600 block" id="modal-skipped-count">0</span>
+                        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Belum Diisi</span>
+                    </div>
+                </div>
+
+                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                    <div id="modal-progress-bar" class="bg-brand-gold h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+
+                <div id="modal-warning-banner" class="bg-red-50 border border-red-200 rounded-xl p-3.5 flex items-start space-x-3 text-xs text-red-800 hidden">
+                    <i class="fa-solid fa-triangle-exclamation text-red-500 text-sm mt-0.5 shrink-0"></i>
+                    <span><strong>Belum lengkap.</strong> Jawab seluruh 25 soal sebelum mengumpulkan.</span>
+                </div>
+
+                <div>
+                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Nomor Soal</h4>
+                    <div id="modal-grid" class="grid grid-cols-5 gap-2"></div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 px-6 py-4 border-t border-gray-100 flex items-center justify-end space-x-3">
+                <button onclick="toggleModal(false)" class="px-5 py-2.5 rounded-xl border border-gray-300 text-xs font-bold text-gray-700 hover:bg-gray-100 transition">
+                    Kembali
+                </button>
+                <button id="modal-submit-btn" onclick="submitQuiz(false)" class="px-6 py-2.5 bg-brand-merah hover:bg-brand-merahHover text-white text-xs font-bold rounded-xl shadow-md transition">
+                    Kumpulkan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DURASI = 45 * 60;
+        const STORAGE_KEY = 'lcc_kebangsaan_2026_v1';
+        const HURUF = ['a', 'b', 'c', 'd'];
+        const LABEL = ['A', 'B', 'C', 'D'];
+
+        const KELAS = [
+            { tingkat: 7, nama: ['Al Khawarizmi', 'Al Farabi', 'Al Battani', 'Al Biruni', 'Al Jazari', 'Al Kindi', 'Al Zahrawi'] },
+            { tingkat: 8, nama: ['Imam Ahmad', 'Imam Muslim', 'Imam Bukhori', 'Imam Tirmidzi', 'Imam Ghazali', 'Imam Nawawi', 'Imam NasaÃ¢â‚¬â„¢i'] },
+            { tingkat: 9, nama: ['Ibnu Hayyan', 'Ibnu Khaldun', 'Ibnu Sina', 'Ibnu Rushd', 'Ibnu Batuta'] }
+        ];
+
+        const SOAL = [
+            { no: 1, t: 'Perumusan naskah Proklamasi Kemerdekaan Indonesia dilaksanakan di rumah milik ...', o: ['Mayor Jenderal Nishimura', 'Laksamana Tadashi Maeda', 'Jenderal Terauchi', 'Admiral Yamamoto'] },
+            { no: 2, t: '"Rayuan Pulau Kelapa" adalah lagu kebangsaan yang diciptakan oleh ...', o: ['H. Mutahar', 'Ibu Sud', 'Ismail Marzuki', 'Kusbini'] },
+            { no: 3, t: 'Tokoh yang merancang lambang negara Indonesia Garuda Pancasila adalah ...', o: ['Mohammad Yamin', 'Sultan Hamid II', 'Ir. Soekarno', 'Mohammad Hatta'] },
+            { no: 4, t: 'Warna merah pada bendera Sang Merah Putih melambangkan ...', o: ['Kesucian', 'Keberanian', 'Kemakmuran', 'Persatuan'] },
+            { no: 5, t: 'Ketua dari Kongres Pemuda II yang melahirkan Sumpah Pemuda adalah ...', o: ['Mohammad Yamin', 'Amir Sjarifuddin', 'Soegondo Djojopoespito', 'Djoko Marsaid'] },
+            { no: 6, t: 'Semboyan "Bhinneka Tunggal Ika" berasal dari kutipan kitab Sutasoma karangan Mpu Tantular pada abad ke ... pada masa ...', o: ['14, Kerajaan Majapahit', '15, Kerajaan Sunda', '13, Kerajaan Ternate', '13, Kerajaan Singasari'] },
+            { no: 7, t: 'Sebagai bentuk penghormatan terhadap ikrar "menjunjung bahasa persatuan, bahasa Indonesia" dalam Sumpah Pemuda, sikap yang paling bijak adalah ...', o: ['Mengharamkan penggunaan bahasa asing dalam segala kondisi pergaulan', 'Menggunakan Bahasa Indonesia untuk mengucap kata-kata kasarnya saja', 'Hanya menggunakan bahasa daerah dalam percakapan sehari-hari', 'Mempelajari dan menulis karya sastra puisi berbahasa Indonesia'] },
+            { no: 8, t: 'Berikut contoh menyikapi gotong royong dalam era globalisasi, kecuali ...', o: ['Menggalang dana secara daring untuk membantu korban karhutla', 'Menggelar kegiatan bersama hanya sekedar untuk kebutuhan konten di media sosial', 'Menyaring informasi hoaks dan valid di groupchat WhatsApp', 'Komunitas lokal menggunakan media sosial untuk meramaikan budaya daerah'] },
+            { no: 9, t: 'Semboyan "Bhinneka Tunggal Ika" tertulis pada pita yang dicengkeram kaki Garuda Pancasila. Makna filosofis dari penempatan semboyan tersebut adalah ...', o: ['Persatuan harus dijunjung di atas keberagaman bangsa', 'Keberagaman adalah landasan yang menopang persatuan Indonesia', 'Semboyan ditempatkan di sana hanya sebagai hiasan lambang negara', 'Garuda harus selalu berdiri di atas semboyan negara'] },
+            { no: 10, t: 'Perhatikan pernyataan berikut!\n1) Ikrar Sumpah Pemuda dibacakan pada penutupan Kongres Pemuda II.\n2) Rumusan Sumpah Pemuda ditulis oleh Mohammad Yamin.\n3) Kongres Pemuda II dipimpin oleh Soegondo Djojopoespito.\n4) Lagu "Indonesia Raya" dikumandangkan tanpa lirik karena khawatir mengundang reaksi Belanda.\n\nPernyataan yang benar ditunjukkan oleh nomor ...', o: ['1, 2, dan 3', '1, 2, dan 4', '2, 3, dan 4', '1, 2, 3, dan 4'] },
+            { no: 11, t: 'Perhatikan pernyataan berikut!\n1) Pancasila disahkan sebagai dasar negara pada 18 Agustus 1945.\n2) Rumusan awal Pancasila dalam Piagam Jakarta sempat memuat tujuh kata yang kemudian diubah.\n3) Perubahan rumusan tersebut atas usulan tokoh dari Indonesia bagian timur demi menjaga persatuan.\n4) Ir. Soekarno menyampaikan rumusan Pancasila pada 1 Juni 1945.\n\nUrutan kronologis yang benar dari peristiwa tersebut adalah ...', o: ['4 - 2 - 3 - 1', '2 - 4 - 1 - 3', '4 - 1 - 2 - 3', '1 - 4 - 3 - 2'] },
+            { no: 12, t: 'Salah satu isi Sumpah Pemuda berbunyi "Kami putra dan putri Indonesia menjunjung tinggi bahasa persatuan, bahasa Indonesia." Kata "menjunjung tinggi" bermakna ...', o: ['Menempatkan bahasa Indonesia sebagai satu-satunya bahasa yang boleh digunakan', 'Menghormati dan mengutamakan bahasa Indonesia sebagai alat pemersatu tanpa menghilangkan bahasa daerah', 'Menaikkan derajat bahasa Indonesia melebihi bahasa daerah dan bahasa asing', 'Menggunakan bahasa Indonesia hanya pada acara resmi kenegaraan'] },
+            { no: 13, t: 'Lagu Indonesia Raya pertama kali diperdengarkan oleh Wage Rudolf Supratman dalam peristiwa ...', o: ['Proklamasi Kemerdekaan Indonesia', 'Sidang pertama BPUPKI', 'Kongres Pemuda II', 'Pembacaan teks Sumpah Pemuda pada masa kemerdekaan'] },
+            { no: 14, t: 'Organisasi pemuda Jong Java merupakan salah satu organisasi yang berperan dalam perkembangan pergerakan pemuda Indonesia. Kata Jong dalam nama organisasi tersebut berarti ...', o: ['Bangsa', 'Pemuda', 'Persatuan', 'Perjuangan'] },
+            { no: 15, t: 'Tokoh yang dikenal sebagai pencipta lagu Indonesia Raya adalah ...', o: ['Ismail Marzuki', 'Kusbini', 'H. Mutahar', 'Wage Rudolf Supratman'] },
+            { no: 16, t: 'Salah satu faktor yang mendorong lahirnya Sumpah Pemuda pada tahun 1928 adalah ...', o: ['Kesadaran pemuda bahwa perjuangan akan lebih kuat jika dilakukan secara bersama-sama', 'Keinginan pemuda untuk membentuk pemerintahan daerah masing-masing', 'Perintah pemerintah kolonial untuk menyatukan organisasi pemuda', 'Keberhasilan Indonesia mengusir seluruh penjajah dari wilayah Nusantara'] },
+            { no: 17, t: 'Lagu nasional Bagimu Negeri diciptakan oleh ...', o: ['Ismail Marzuki', 'Kusbini', 'C. Simanjuntak', 'Wage Rudolf Supratman'] },
+            { no: 18, t: 'Tokoh yang mengetik naskah Proklamasi Kemerdekaan Indonesia setelah dirumuskan oleh Soekarno, Mohammad Hatta, dan Ahmad Soebardjo adalah ...', o: ['Sukarni', 'Ahmad Soebardjo', 'Sayuti Melik', 'Wikana'] },
+            { no: 19, t: 'Pancasila memiliki kedudukan sebagai dasar negara Indonesia. Artinya, Pancasila berfungsi sebagai ...', o: ['Pedoman yang hanya digunakan dalam kegiatan upacara', 'Aturan yang berlaku khusus bagi lembaga pemerintahan', 'Landasan dalam penyelenggaraan negara dan pembentukan peraturan', 'Pengganti seluruh kebudayaan yang berkembang di Indonesia'] },
+            { no: 20, t: 'Indonesia memiliki banyak pulau yang dipisahkan oleh laut. Salah satu faktor yang memperkuat persatuan bangsa di tengah kondisi geografis tersebut adalah ...', o: ['Setiap pulau mengembangkan aturan negara yang berbeda', 'Masyarakat hanya berinteraksi dengan penduduk dari pulau yang sama', 'Seluruh penduduk harus memiliki mata pencaharian yang seragam', 'Adanya rasa senasib, identitas nasional, dan cita-cita bersama sebagai bangsa Indonesia'] },
+            { no: 21, t: 'Peringatan Sumpah Pemuda ke-98 pada 28 Oktober 2026 menjadi momen bagi pemuda untuk meneladani semangat persatuan. Sikap yang paling sesuai dengan makna Sumpah Pemuda adalah ...', o: ['Mengikuti upacara peringatan sebagai rutinitas tahunan semata', 'Membagikan ajakan bersatu di media sosial hanya pada 28 Oktober', 'Menghargai perbedaan bahasa dan budaya dalam pergaulan sehari-hari', 'Menunggu momentum besar sebelum ikut peduli pada persoalan bangsa'] },
+            { no: 22, t: 'Kongres Pemuda I, yang menjadi awal pertemuan pemuda lintas daerah sebelum Sumpah Pemuda, diselenggarakan pada tahun ...', o: ['1908', '1926', '1928', '1945'] },
+            { no: 23, t: 'Di era digital, generasi muda dapat mewujudkan semangat Sumpah Pemuda dengan cara ...', o: ['Menyebarkan kabar yang sejalan dengan pandangan pribadi tanpa ragu', 'Menjauhi pergaulan dengan pemuda yang berasal dari daerah lain', 'Memandang perbedaan suku dan bahasa sebagai sumber perpecahan', 'Memeriksa kebenaran informasi sebelum dibagikan kepada orang lain'] },
+            { no: 24, t: 'Seorang siswa menerima pesan berantai di grup kelas yang menyebarkan prasangka terhadap teman dari suku tertentu. Tindakan yang paling sesuai dengan semangat persatuan adalah ...', o: ['Meneruskan pesan itu agar seluruh anggota grup mengetahuinya', 'Menegur pengirim dengan sopan dan tidak meneruskan pesan tersebut', 'Membalas pesan itu dengan sindiran yang membuat pengirimnya malu', 'Membiarkan pesan itu tanpa memeriksa kebenaran isinya terlebih dahulu'] },
+            { no: 25, t: 'Kongres Pemuda II yang melahirkan Sumpah Pemuda dilaksanakan di sebuah gedung di Batavia. Gedung tersebut dikenal dengan nama ...', o: ['Gedung Volksraad', 'Gedung Stovia', 'Indonesische Clubgebouw', 'Gedung Konservatorium Batavia'] }
+        ];
+
+        let state = {
+            screen: 'welcome', // welcome | kelas | quiz | terkunci | selesai | done
+            idx: 0,
+            kelas: '',
+            jawaban: {},
+            urutanSoal: [],
+            urutanOpsi: {},
+            pelanggaran: [],
+            sesi: null,
+            kunciLokal: false,
+            jenisKunci: '',
+            bukaNoSaatKunci: 0,
+            pesanKunci: '',
+            submitted: false,
+            statusKirim: null,
+            sisa: DURASI,
+            timer: null,
+            fsAktif: false
+        };
+
+        function esc(s) {
+            return String(s ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function acak(arr) {
+            const a = arr.slice();
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function siapkanAcak() {
+            state.urutanSoal = acak(SOAL.map(s => s.no));
+            state.urutanOpsi = {};
+            SOAL.forEach(s => {
+                state.urutanOpsi[s.no] = acak(HURUF.slice());
+            });
+        }
+
+        function loadState() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+                if (!saved) return;
+                state.kelas = saved.kelas || '';
+                state.jawaban = saved.jawaban || {};
+                state.urutanSoal = saved.urutanSoal || [];
+                state.urutanOpsi = saved.urutanOpsi || {};
+                state.pelanggaran = saved.pelanggaran || [];
+                state.sesi = saved.sesi || null;
+                state.kunciLokal = !!saved.kunciLokal;
+                state.jenisKunci = saved.jenisKunci || '';
+                state.bukaNoSaatKunci = saved.bukaNoSaatKunci || 0;
+                state.idx = typeof saved.idx === 'number' ? saved.idx : 0;
+                state.sisa = typeof saved.sisa === 'number' ? saved.sisa : DURASI;
+                state.submitted = !!saved.submitted;
+                state.statusKirim = saved.statusKirim === 'mengirim' ? 'gagal' : (saved.statusKirim || null);
+
+                if (!state.urutanSoal.length) siapkanAcak();
+
+                if (state.submitted) {
+                    state.screen = 'done';
+                } else if (['quiz', 'kelas', 'terkunci'].includes(saved.screen)) {
+                    state.screen = saved.screen;
+                }
+            } catch (e) {
+                console.error('Gagal membaca memori lokal', e);
+            }
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    kelas: state.kelas,
+                    jawaban: state.jawaban,
+                    urutanSoal: state.urutanSoal,
+                    urutanOpsi: state.urutanOpsi,
+                    pelanggaran: state.pelanggaran,
+                    sesi: state.sesi,
+                    kunciLokal: state.kunciLokal,
+                    jenisKunci: state.jenisKunci,
+                    bukaNoSaatKunci: state.bukaNoSaatKunci,
+                    idx: state.idx,
+                    sisa: state.sisa,
+                    submitted: state.submitted,
+                    statusKirim: state.statusKirim,
+                    screen: state.screen
+                }));
+            } catch (e) {
+                console.error('Gagal menyimpan memori lokal', e);
+            }
+        }
+
+        function hitungSisa(s) {
+            const akhir = s.status === 'terkunci' && s.terkunci_sejak ? new Date(s.terkunci_sejak).getTime() : Date.now();
+            const berjalan = (akhir - new Date(s.mulai).getTime()) / 1000 - (s.jeda_detik || 0);
+            return Math.max(0, Math.floor(DURASI - berjalan));
+        }
+
+        function startTimer() {
+            clearInterval(state.timer);
+            state.timer = setInterval(() => {
+                if (state.screen !== 'quiz') return;
+                state.sisa--;
+                if (state.sisa <= 0) {
+                    state.sisa = 0;
+                    updateTimerUI();
+                    submitQuiz(true);
+                    return;
+                }
+                saveState();
+                updateTimerUI();
+            }, 1000);
+        }
+
+        function formatWaktu(detik) {
+            const m = Math.floor(detik / 60).toString().padStart(2, '0');
+            const d = (detik % 60).toString().padStart(2, '0');
+            return `${m}:${d}`;
+        }
+
+        function updateTimerUI() {
+            const el = document.getElementById('quiz-timer');
+            if (!el) return;
+            el.textContent = formatWaktu(state.sisa);
+            const wrap = el.closest('.timer-wrap');
+            if (wrap) {
+                wrap.classList.toggle('bg-red-600', state.sisa <= 300);
+                wrap.classList.toggle('bg-white/15', state.sisa > 300);
+            }
+        }
+
+        function render() {
+            const c = document.getElementById('app-container');
+            if (!c) return;
+
+            if (state.screen === 'welcome') c.innerHTML = renderWelcome();
+            else if (state.screen === 'kelas') c.innerHTML = renderPilihKelas();
+            else if (state.screen === 'quiz') { c.innerHTML = renderQuiz(); updateTimerUI(); }
+            else if (state.screen === 'terkunci') c.innerHTML = renderTerkunci();
+            else if (state.screen === 'selesai') c.innerHTML = renderSelesai();
+            else c.innerHTML = renderDone();
+
+            saveState();
+        }
+
+        function keluarFullscreen() {
+            state.fsAktif = false;
+            if (document.fullscreenElement && document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+
+        function renderWelcome() {
+            return `
+                <div class="bg-brand-merah text-white pt-10 pb-24 px-4 sm:px-6 relative overflow-hidden pattern-merah">
+                    <div class="max-w-5xl mx-auto relative z-10">
+                        <div class="inline-flex items-center space-x-2 bg-white/15 px-3.5 py-1.5 rounded-full text-xs font-semibold mb-4">
+                            <i class="fa-solid fa-flag text-amber-300"></i>
+                            <span>Cross Culture 2026</span>
+                        </div>
+                        <h1 class="text-2xl sm:text-4xl font-extrabold mb-3 leading-tight">
+                            Lomba Cerdas Cermat<br class="hidden sm:block"> Kebangsaan Cross Culture 2026
+                        </h1>
+                        <p class="text-rose-100 text-sm sm:text-base max-w-2xl leading-relaxed">
+                            Tahap 1: 25 soal pilihan ganda seputar sejarah kebangsaan, lambang negara, dan semangat persatuan. Dikerjakan berkelompok, satu perangkat untuk satu kelas.
+                        </p>
+                    </div>
+                    <div class="absolute -right-16 -bottom-16 w-96 h-96 bg-amber-400/20 rounded-full blur-3xl pointer-events-none"></div>
+                </div>
+
+                <div class="max-w-5xl mx-auto px-4 sm:px-6 -mt-16 mb-10 relative z-20 w-full space-y-5">
+                    <div class="bg-white rounded-2xl p-5 shadow-lg border border-gray-100 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="flex items-center space-x-3 sm:border-r border-gray-100 sm:pr-4">
+                            <div class="w-11 h-11 rounded-xl bg-rose-50 text-brand-merah flex items-center justify-center text-lg shrink-0">
+                                <i class="fa-solid fa-list-ol"></i>
+                            </div>
+                            <div>
+                                <span class="text-[11px] font-semibold text-gray-500 block uppercase tracking-wider">Jumlah Soal</span>
+                                <span class="text-base font-bold text-gray-900">25 Pilihan Ganda</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3 sm:border-r border-gray-100 sm:pr-4">
+                            <div class="w-11 h-11 rounded-xl bg-amber-50 text-brand-gold flex items-center justify-center text-lg shrink-0">
+                                <i class="fa-solid fa-stopwatch"></i>
+                            </div>
+                            <div>
+                                <span class="text-[11px] font-semibold text-gray-500 block uppercase tracking-wider">Waktu</span>
+                                <span class="text-base font-bold text-gray-900">45 Menit</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg shrink-0">
+                                <i class="fa-solid fa-star"></i>
+                            </div>
+                            <div>
+                                <span class="text-[11px] font-semibold text-gray-500 block uppercase tracking-wider">Skor</span>
+                                <span class="text-base font-bold text-gray-900">4 poin per soal</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div class="flex items-center space-x-3 mb-4">
+                            <div class="w-9 h-9 rounded-xl bg-rose-50 text-brand-merah flex items-center justify-center">
+                                <i class="fa-solid fa-circle-info"></i>
+                            </div>
+                            <h2 class="text-base font-bold text-gray-900">Ketentuan</h2>
+                        </div>
+                        <ol class="space-y-2.5 text-xs sm:text-sm text-gray-600 list-decimal list-inside leading-relaxed">
+                            <li>Pilih kelas kalian. Satu kelas mengerjakan satu kali.</li>
+                            <li>Urutan soal dan pilihan jawaban diacak untuk setiap kelas.</li>
+                            <li>Tes berjalan dalam mode layar penuh. Keluar dari layar penuh akan mengunci tes.</li>
+                            <li>Berpindah tab, keluar aplikasi, menyalin, atau menempel juga mengunci tes.</li>
+                            <li>Tes yang terkunci hanya dapat dibuka kembali dengan kode dari pengawas.</li>
+                            <li>Jawab seluruh 25 soal sebelum mengumpulkan.</li>
+                        </ol>
+                    </div>
+
+                    ${state.kelas ? `
+                        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-800 flex items-start space-x-2">
+                            <i class="fa-solid fa-clock-rotate-left mt-0.5"></i>
+                            <span>Ada pengerjaan yang belum selesai untuk <strong>${esc(state.kelas)}</strong>. Tekan tombol di bawah untuk melanjutkan.</span>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <div class="bg-white border-t border-gray-200 p-4 sticky bottom-0 z-20">
+                    <div class="max-w-5xl mx-auto">
+                        <button onclick="mulaiAlur()" class="w-full py-3.5 bg-brand-merah hover:bg-brand-merahHover text-white font-bold rounded-xl transition shadow-lg flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-flag-checkered"></i>
+                            <span>${state.kelas ? 'Lanjutkan' : 'Mulai'}</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPilihKelas() {
+            const opsi = KELAS.map(g => `
+                <optgroup label="Kelas ${g.tingkat}">
+                    ${g.nama.map(n => {
+                        const v = `${g.tingkat} ${n}`;
+                        return `<option value="${esc(v)}" ${state.kelas === v ? 'selected' : ''}>${v}</option>`;
+                    }).join('')}
+                </optgroup>
+            `).join('');
+
+            return `
+                <div class="bg-brand-merah text-white pt-10 pb-20 px-4 sm:px-6 relative overflow-hidden pattern-merah">
+                    <div class="max-w-lg mx-auto relative z-10">
+                        <h1 class="text-2xl font-extrabold mb-2">Pilih Kelas</h1>
+                        <p class="text-rose-100 text-sm">Pastikan kelas sudah benar. Satu kelas hanya bisa mengerjakan satu kali.</p>
+                    </div>
+                </div>
+
+                <div class="max-w-lg mx-auto px-4 sm:px-6 -mt-12 mb-10 relative z-20 w-full">
+                    <div class="bg-white rounded-2xl p-6 shadow-xl border border-gray-100 space-y-4">
+                        <label for="pilih-kelas" class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Kelas</label>
+                        <select id="pilih-kelas" class="w-full p-4 border-2 border-gray-200 focus:border-brand-merah rounded-xl text-sm bg-white outline-none transition">
+                            <option value="">-- Pilih Kelas --</option>
+                            ${opsi}
+                        </select>
+                        <p class="text-xs text-gray-500 leading-relaxed">
+                            Dengan menekan tombol di bawah, tes akan dibuka dalam mode layar penuh.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="bg-white border-t border-gray-200 p-4 sticky bottom-0 z-20">
+                    <div class="max-w-lg mx-auto flex gap-3">
+                        <button onclick="state.screen='welcome'; render();" class="px-5 py-3 rounded-xl border border-gray-300 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition">
+                            Kembali
+                        </button>
+                        <button onclick="masukTes()" class="flex-1 py-3 bg-brand-merah hover:bg-brand-merahHover text-white font-bold rounded-xl transition shadow-lg flex items-center justify-center space-x-2">
+                            <i class="fa-solid fa-expand"></i>
+                            <span>Masuk Tes</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderQuiz() {
+            const no = state.urutanSoal[state.idx];
+            const s = SOAL.find(x => x.no === no);
+            const urut = state.urutanOpsi[no] || HURUF;
+            const dipilih = state.jawaban[no] || '';
+
+            return `
+                <div class="bg-brand-merah text-white py-3 px-4 sm:px-6 shadow-md">
+                    <div class="max-w-5xl mx-auto flex items-center justify-between gap-3">
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <button onclick="kembaliKeBeranda()" class="bg-white/10 hover:bg-white/20 p-2 rounded-full text-xs shrink-0 transition" title="Ke beranda">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <div class="min-w-0">
+                                <p class="text-xs sm:text-sm font-semibold truncate">Cerdas Cermat Kebangsaan 2026</p>
+                                <p class="text-[11px] text-rose-200 truncate">${esc(state.kelas)}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2 sm:space-x-3 shrink-0">
+                            <span id="pelanggaran-pill" class="${state.pelanggaran.length ? '' : 'hidden'} bg-amber-400 text-brand-merah px-3 py-1.5 rounded-full text-xs font-bold">${state.pelanggaran.length}</span>
+                            <div class="timer-wrap flex items-center space-x-2 bg-white/15 px-3 py-1.5 rounded-full text-xs font-bold">
+                                <i class="fa-regular fa-clock"></i>
+                                <span id="quiz-timer">45:00</span>
+                            </div>
+                            <button onclick="toggleModal(true)" class="bg-white text-brand-merah hover:bg-rose-50 px-3.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm">
+                                Kumpulkan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white border-b border-gray-200 py-3 px-4 sm:px-6 sticky top-0 z-20 shadow-sm">
+                    <div class="max-w-5xl mx-auto flex items-center justify-between gap-4">
+                        <span class="text-sm font-bold text-gray-900 shrink-0">Soal ${state.idx + 1}<span class="text-gray-400 font-medium">/25</span></span>
+                        <div id="nav-pills" class="flex items-center space-x-1.5 overflow-x-auto custom-scrollbar px-1 py-1">
+                            ${renderPills()}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="max-w-3xl mx-auto px-4 sm:px-6 py-6 w-full flex-grow">
+                    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-xs font-bold px-2.5 py-1 bg-rose-50 text-brand-merah rounded-lg uppercase tracking-wider">Pilihan Ganda</span>
+                            <span class="text-xs font-semibold text-gray-400">4 poin</span>
+                        </div>
+
+                        <div class="text-sm sm:text-base text-gray-900 font-medium leading-relaxed whitespace-pre-line mb-6">
+                            ${esc(s.t)}
+                        </div>
+
+                        <div class="space-y-3">
+                            ${urut.map((asli, i) => {
+                                const idxAsli = HURUF.indexOf(asli);
+                                const teks = s.o[idxAsli];
+                                const aktif = dipilih === asli;
+                                return `
+                                    <button onclick="pilihJawaban(${no}, '${asli}')" class="w-full text-left p-4 rounded-xl border-2 transition flex items-start space-x-3 ${aktif ? 'border-brand-merah bg-rose-50/60 shadow-sm' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}">
+                                        <div class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 ${aktif ? 'bg-brand-merah text-white' : 'bg-gray-100 text-gray-600'}">
+                                            ${LABEL[i]}
+                                        </div>
+                                        <div class="text-sm text-gray-800 leading-snug pt-0.5">${esc(teks)}</div>
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white border-t border-gray-200 p-4 sticky bottom-0 z-20">
+                    <div class="max-w-3xl mx-auto flex items-center justify-between">
+                        <button onclick="prevQuestion()" ${state.idx === 0 ? 'disabled class="opacity-40 cursor-not-allowed px-5 py-2.5 rounded-xl border border-gray-300 text-xs font-semibold text-gray-400"' : 'class="px-5 py-2.5 rounded-xl border border-gray-300 hover:bg-gray-50 text-xs font-semibold text-gray-700 transition flex items-center space-x-2"'}>
+                            <i class="fa-solid fa-chevron-left text-xs"></i>
+                            <span>Sebelumnya</span>
+                        </button>
+
+                        <button onclick="nextQuestion()" class="px-6 py-2.5 bg-brand-merah hover:bg-brand-merahHover text-white font-bold rounded-xl text-xs transition shadow-md flex items-center space-x-2">
+                            <span>${state.idx === 24 ? 'Ringkasan' : 'Berikutnya'}</span>
+                            <i class="fa-solid fa-chevron-right text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPills() {
+            return state.urutanSoal.map((no, i) => {
+                const aktif = i === state.idx;
+                const dijawab = !!state.jawaban[no];
+                let style = 'bg-gray-100 text-gray-600 border border-gray-200';
+                if (aktif) style = 'bg-brand-merah text-white font-bold shadow-md scale-105';
+                else if (dijawab) style = 'bg-emerald-500 text-white font-semibold';
+                return `
+                    <button onclick="goTo(${i})" class="w-7 h-7 shrink-0 rounded-full text-[11px] transition flex items-center justify-center ${style}">
+                        ${i + 1}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderTerkunci() {
+            return `
+                <div class="bg-brand-merah text-white pt-10 pb-16 px-4 sm:px-6 pattern-merah">
+                    <div class="max-w-md mx-auto text-center">
+                        <div class="w-16 h-16 mx-auto rounded-full bg-white/15 flex items-center justify-center text-2xl">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <h1 class="text-xl sm:text-2xl font-extrabold mt-4">Tes Dikunci</h1>
+                        <p class="text-rose-100 text-sm mt-2">${esc(state.jenisKunci || 'Aktivitas di luar halaman tes')}</p>
+                    </div>
+                </div>
+
+                <div class="max-w-md mx-auto px-4 -mt-8 mb-10 w-full">
+                    <div class="bg-white rounded-2xl p-6 shadow-xl border border-gray-100 space-y-5">
+                        <p class="text-sm text-gray-700 leading-relaxed">
+                            Jawaban tersimpan. Tes hanya bisa dilanjutkan setelah pengawas memberikan kode.
+                        </p>
+                        <form onsubmit="event.preventDefault(); bukaDenganKode(this.kode.value.trim());" class="space-y-3">
+                            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Kode dari pengawas</label>
+                            <input name="kode" type="text" autocomplete="off" required maxlength="10" class="w-full p-4 border-2 border-gray-200 focus:border-brand-merah rounded-xl text-center text-lg font-bold tracking-widest uppercase outline-none transition">
+                            <button type="submit" class="w-full py-3 bg-brand-merah hover:bg-brand-merahHover text-white font-bold rounded-xl transition">
+                                Buka Kunci
+                            </button>
+                        </form>
+                        ${state.pesanKunci ? `<p class="text-xs text-red-600 text-center">${esc(state.pesanKunci)}</p>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSelesai() {
+            return `
+                <div class="bg-brand-merah text-white py-10 px-4 sm:px-6 pattern-merah">
+                    <div class="max-w-lg mx-auto text-center">
+                        <h1 class="text-xl sm:text-2xl font-bold">Kelas Ini Sudah Selesai</h1>
+                        <p class="text-xs text-rose-200 mt-1">Cerdas Cermat Kebangsaan 2026</p>
+                    </div>
+                </div>
+                <div class="max-w-md mx-auto px-4 -mt-10 mb-10 w-full">
+                    <div class="bg-white rounded-2xl p-8 shadow-xl border border-gray-100 text-center space-y-4">
+                        <div class="w-16 h-16 mx-auto rounded-full bg-amber-50 text-brand-gold flex items-center justify-center text-2xl">
+                            <i class="fa-solid fa-flag-checkered"></i>
+                        </div>
+                        <p class="text-sm text-gray-700 leading-relaxed">
+                            <strong>${esc(state.kelas)}</strong> sudah mengumpulkan jawaban. Jika perlu mengerjakan ulang, hubungi pengawas.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStatusKirim() {
+            if (state.statusKirim === 'berhasil') {
+                return `
+                    <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs text-emerald-800 flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <span>Jawaban sudah tersimpan di server.</span>
+                    </div>
+                `;
+            }
+            if (state.statusKirim === 'mengirim') {
+                return `
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <span>Mengirim jawaban...</span>
+                    </div>
+                `;
+            }
+            return `
+                <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-xs text-red-800 space-y-3">
+                    <span class="block">Belum terkirim. Periksa koneksi internet, lalu kirim ulang. Jawaban tetap tersimpan.</span>
+                    <button onclick="kirimHasil()" class="px-4 py-2 bg-brand-merah text-white font-bold rounded-lg transition">
+                        Kirim Ulang
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderDone() {
+            const terjawab = Object.keys(state.jawaban).filter(k => state.jawaban[k]).length;
+            return `
+                <div class="bg-brand-merah text-white py-10 px-4 sm:px-6 pattern-merah">
+                    <div class="max-w-lg mx-auto text-center">
+                        <h1 class="text-xl sm:text-2xl font-bold">Jawaban Terkirim</h1>
+                        <p class="text-xs text-rose-200 mt-1">Cerdas Cermat Kebangsaan 2026</p>
+                    </div>
+                </div>
+
+                <div class="max-w-md mx-auto px-4 -mt-10 mb-10 w-full">
+                    <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-xl border border-gray-100 text-center space-y-5">
+                        <div class="w-16 h-16 mx-auto rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-900">Terima kasih!</h2>
+                            <p class="text-xs text-gray-500 mt-1">Hasil akan diumumkan oleh pengawas.</p>
+                        </div>
+
+                        ${renderStatusKirim()}
+
+                        <div class="bg-gray-50 rounded-xl p-4 text-left space-y-1 border border-gray-100">
+                            <span class="block text-sm font-bold text-gray-900">${esc(state.kelas)}</span>
+                            <span class="block text-xs text-gray-500">${terjawab} dari 25 soal terjawab</span>
+                        </div>
+
+                        <p class="text-[11px] text-gray-400">Jangan tutup halaman sebelum pengawas memastikan jawaban tersimpan.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function mulaiAlur() {
+            if (state.sesi && state.kelas) {
+                lanjutkanSesi();
+            } else {
+                state.screen = 'kelas';
+                render();
+            }
+        }
+
+        async function masukTes() {
+            const pilih = document.getElementById('pilih-kelas');
+            const kelas = pilih.value;
+            if (!kelas) {
+                showToast('Pilih kelas terlebih dahulu.');
+                return;
+            }
+            state.kelas = kelas;
+
+            await masukFullscreen();
+
+            try {
+                const { data, error } = await db.rpc('mulai_sesi', { p_kelas: kelas });
+                if (error) throw error;
+                terapkanSesi(data);
+            } catch (e) {
+                console.error(e);
+                showToast('Tidak bisa terhubung ke server. Periksa koneksi lalu coba lagi.');
+                return;
+            }
+
+            if (!state.urutanSoal.length) siapkanAcak();
+            await aturStatusAwal(false);
+        }
+
+        async function lanjutkanSesi() {
+            try {
+                const { data, error } = await db.rpc('mulai_sesi', { p_kelas: state.kelas });
+                if (error) throw error;
+                terapkanSesi(data);
+            } catch (e) {
+                console.error(e);
+                showToast('Tidak bisa terhubung ke server.');
+                return;
+            }
+            await aturStatusAwal(false);
+        }
+
+        function terapkanSesi(data) {
+            if (state.kunciLokal && data.buka_no > state.bukaNoSaatKunci) {
+                state.kunciLokal = false;
+            }
+            state.sesi = data;
+            state.kelas = data.kelas;
+            saveState();
+        }
+
+        async function aturStatusAwal(mintaFullscreen) {
+            const s = state.sesi;
+
+            if (s.status === 'selesai') {
+                keluarFullscreen();
+                state.screen = 'selesai';
+                render();
+                return;
+            }
+
+            if (s.status === 'terkunci') {
+                keluarFullscreen();
+                state.screen = 'terkunci';
+                render();
+                return;
+            }
+
+            if (state.kunciLokal) {
+                keluarFullscreen();
+                state.screen = 'terkunci';
+                render();
+                await catatKeServer(state.jenisKunci || 'Pelanggaran');
+                return;
+            }
+
+            state.sisa = hitungSisa(s);
+            state.screen = 'quiz';
+            render();
+
+            if (mintaFullscreen) await masukFullscreen();
+            else if (!document.fullscreenElement) await masukFullscreen();
+
+            if (state.sisa <= 0) {
+                submitQuiz(true);
+                return;
+            }
+            startTimer();
+        }
+
+        async function masukFullscreen() {
+            try {
+                if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                }
+                state.fsAktif = !!document.fullscreenElement;
+            } catch (e) {
+                console.warn('Layar penuh ditolak browser', e);
+                state.fsAktif = false;
+            }
+            saveState();
+        }
+
+        function kembaliKeBeranda() {
+            state.screen = 'welcome';
+            render();
+        }
+
+        function pilihJawaban(no, huruf) {
+            if (state.submitted) return;
+            state.jawaban[no] = huruf;
+            render();
+        }
+
+        function goTo(i) {
+            state.idx = i;
+            render();
+        }
+
+        function prevQuestion() {
+            if (state.idx > 0) { state.idx--; render(); }
+        }
+
+        function nextQuestion() {
+            if (state.idx < 24) { state.idx++; render(); }
+            else toggleModal(true);
+        }
+
+        function toggleModal(show) {
+            const m = document.getElementById('overview-modal');
+            if (!m) return;
+            if (show) { updateModal(); m.classList.remove('hidden'); }
+            else m.classList.add('hidden');
+        }
+
+        function updateModal() {
+            const terjawab = Object.keys(state.jawaban).filter(k => state.jawaban[k]).length;
+            const kosong = 25 - terjawab;
+            const persen = Math.round((terjawab / 25) * 100);
+
+            document.getElementById('modal-answered-count').innerText = terjawab;
+            document.getElementById('modal-skipped-count').innerText = kosong;
+            document.getElementById('modal-progress-bar').style.width = `${persen}%`;
+
+            const warn = document.getElementById('modal-warning-banner');
+            const btn = document.getElementById('modal-submit-btn');
+
+            if (kosong > 0) {
+                warn.classList.remove('hidden');
+                btn.disabled = true;
+                btn.className = 'px-6 py-2.5 bg-gray-200 text-gray-400 text-xs font-bold rounded-xl cursor-not-allowed border border-gray-300';
+                btn.innerHTML = `<i class="fa-solid fa-lock text-xs"></i> Belum lengkap (${kosong})`;
+            } else {
+                warn.classList.add('hidden');
+                btn.disabled = false;
+                btn.className = 'px-6 py-2.5 bg-brand-merah hover:bg-brand-merahHover text-white text-xs font-bold rounded-xl shadow-md transition';
+                btn.innerHTML = 'Ya, Kumpulkan';
+            }
+
+            document.getElementById('modal-grid').innerHTML = state.urutanSoal.map((no, i) => {
+                const aktif = i === state.idx;
+                const dijawab = !!state.jawaban[no];
+                let style = 'bg-gray-50 text-gray-600 border-gray-200';
+                if (aktif) style = 'bg-brand-merah text-white border-brand-merah font-bold';
+                else if (dijawab) style = 'bg-emerald-500 text-white border-emerald-500 font-bold';
+                return `<button onclick="toggleModal(false); goTo(${i});" class="py-2 rounded-xl text-xs font-bold border transition ${style}">${i + 1}</button>`;
+            }).join('');
+        }
+
+        async function kirimHasil() {
+            state.statusKirim = 'mengirim';
+            render();
+
+            try {
+                const { error } = await db.rpc('kirim_hasil', {
+                    p_kelas: state.kelas,
+                    p_durasi: DURASI - state.sisa,
+                    p_jawaban: state.jawaban,
+                    p_sesi: state.sesi ? state.sesi.id : null
+                });
+                if (error) throw error;
+                state.statusKirim = 'berhasil';
+            } catch (e) {
+                console.error('Gagal mengirim hasil', e);
+                state.statusKirim = 'gagal';
+            }
+            render();
+        }
+
+        function submitQuiz(paksa) {
+            const kosong = 25 - Object.keys(state.jawaban).filter(k => state.jawaban[k]).length;
+            if (!paksa && kosong > 0) {
+                showToast(`Masih ada ${kosong} soal yang belum dijawab.`);
+                return;
+            }
+            toggleModal(false);
+            state.submitted = true;
+            state.screen = 'done';
+            clearInterval(state.timer);
+            keluarFullscreen();
+            saveState();
+            kirimHasil();
+        }
+
+        function showToast(msg) {
+            const t = document.createElement('div');
+            t.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-xl z-[70] max-w-sm text-center';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+
+        function showPeringatan(msg) {
+            const t = document.createElement('div');
+            t.className = 'fixed top-4 left-1/2 -translate-x-1/2 bg-brand-merah text-white text-xs sm:text-sm px-5 py-3 rounded-xl shadow-xl z-[70] flex items-center space-x-2 max-w-sm';
+            t.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i><span>${esc(msg)}</span>`;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 4000);
+        }
+
+        async function catatKeServer(jenis) {
+            if (!state.sesi) return false;
+            const no = state.urutanSoal[state.idx] || 0;
+            const { data, error } = await db.rpc('catat_pelanggaran', {
+                p_sesi: state.sesi.id,
+                p_jenis: jenis,
+                p_soal: no
+            });
+            if (error) {
+                console.error(error);
+                return false;
+            }
+            state.sesi.status = data.status;
+            saveState();
+            return true;
+        }
+
+        let terakhirCatat = 0;
+
+        async function catatPelanggaran(jenis) {
+            if (state.screen !== 'quiz' || state.submitted) return;
+            const now = Date.now();
+            if (now - terakhirCatat < 1500) return;
+            terakhirCatat = now;
+
+            const no = state.urutanSoal[state.idx] || 0;
+            state.pelanggaran.push({ waktu: new Date().toISOString(), jenis: jenis, soal: no });
+            state.kunciLokal = true;
+            state.jenisKunci = jenis;
+            state.bukaNoSaatKunci = state.sesi ? (state.sesi.buka_no || 0) : 0;
+            state.screen = 'terkunci';
+            state.pesanKunci = '';
+            clearInterval(state.timer);
+            saveState();
+            render();
+            showPeringatan(`${jenis}. Tes dikunci.`);
+
+            const ok = await catatKeServer(jenis);
+            if (!ok) {
+                state.pesanKunci = 'Koneksi bermasalah. Kunci tetap berlaku dan akan dicatat saat halaman dibuka kembali.';
+                render();
+            }
+        }
+
+        async function bukaDenganKode(kode) {
+            state.pesanKunci = 'Memeriksa kode...';
+            render();
+
+            try {
+                const { data, error } = await db.rpc('buka_kunci', {
+                    p_sesi: state.sesi.id,
+                    p_kode: kode
+                });
+                if (error) throw error;
+
+                if (data !== 'ok') {
+                    const pesan = {
+                        salah: 'Kode salah. Periksa kembali.',
+                        habis: 'Kode tidak berlaku lagi. Minta kode baru kepada pengawas.',
+                        tidak_terkunci: 'Tes tidak sedang dikunci. Muat ulang halaman.'
+                    };
+                    state.pesanKunci = pesan[data] || 'Kode tidak berlaku.';
+                    render();
+                    return;
+                }
+
+                state.kunciLokal = false;
+                state.pesanKunci = '';
+                await lanjutkanSesi();
+            } catch (e) {
+                console.error(e);
+                state.pesanKunci = 'Gagal terhubung ke server. Coba lagi.';
+                render();
+            }
+        }
+
+        function pasangPengawasan() {
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) catatPelanggaran('Pindah ke tab atau aplikasi lain');
+            });
+            window.addEventListener('blur', () => catatPelanggaran('Keluar dari halaman tes'));
+            document.addEventListener('copy', e => { e.preventDefault(); catatPelanggaran('Menyalin teks'); });
+            document.addEventListener('cut', e => { e.preventDefault(); catatPelanggaran('Memotong teks'); });
+            document.addEventListener('paste', e => { e.preventDefault(); catatPelanggaran('Menempel teks'); });
+            document.addEventListener('contextmenu', e => e.preventDefault());
+            document.addEventListener('keydown', e => {
+                if (e.key === 'PrintScreen') catatPelanggaran('Menekan tombol PrintScreen');
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') e.preventDefault();
+            });
+            document.addEventListener('fullscreenchange', () => {
+                if (!document.fullscreenElement && state.fsAktif && state.screen === 'quiz' && !state.submitted) {
+                    catatPelanggaran('Keluar dari mode layar penuh');
+                }
+            });
+        }
+
+        window.onload = async function () {
+            loadState();
+            pasangPengawasan();
+            render();
+
+            const perluSinkron = state.sesi && state.kelas && ['quiz', 'terkunci'].includes(state.screen);
+            if (perluSinkron) {
+                try {
+                    const { data, error } = await db.rpc('mulai_sesi', { p_kelas: state.kelas });
+                    if (error) throw error;
+                    terapkanSesi(data);
+                    await aturStatusAwal(false);
+                } catch (e) {
+                    console.error(e);
+                    if (state.screen === 'quiz') startTimer();
+                }
+            }
+        };
+    </script>
+</body>
+</html>
